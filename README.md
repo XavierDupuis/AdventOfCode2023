@@ -7,9 +7,6 @@ Each day's solution is organized in its respective directory under the "days" fo
 
 ```
 - utils/
-  - input.ts
-  - solutionner.ts
-
 - days/
   - 01/
     - input.txt
