@@ -6,21 +6,23 @@ Each day's solution is organized in its respective directory under the "days" fo
 ## Directory Structure
 
 ```
-- utils/
-- days/
-  - 01/
-    - input.txt
-    - solution.ts
-    - solution.spec.ts
-  - 02/
-    - input.txt
-    - solution.ts
-    - solution.spec.ts
-  ...
-  - xx/
-    - input.txt
-    - solution.ts
-    - solution.spec.ts
+.
+├── utils/
+└── days/
+    ├── 01/
+    │   ├── input.txt
+    │   ├── solution.ts
+    │   └── solution.spec.ts
+    ...
+    ├── xx/
+    │   ├── input.txt
+    │   ├── solution.ts
+    │   └── solution.spec.ts
+    ...
+    └── 25/
+        ├── input.txt
+        ├── solution.ts
+        └── solution.spec.ts
 ```
 
 ## Running Solutions
