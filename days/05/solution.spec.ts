@@ -44,5 +44,8 @@ describe('Day 05', () => {
     });
 
     describe('Part 2', () => {
+        it('should return 46 since the lowest location number is 46 (from the seeds 79-92 and 55-67)', () => {
+            expect(part2(maps)).toBe(46);
+        });
     });
 });
