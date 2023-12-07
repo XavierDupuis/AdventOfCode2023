@@ -25,27 +25,21 @@ class MapRange {
         const unmapped: SeedRange[] = []
         const mapped: SeedRange[] = []
 
-        // console.log(`Mapping ${range.start} - ${range.end} by ${this.sourceStart} - ${this.sourceEnd}`)
-
         if (this.sourceStart > range.start) {
             const beforeEnd = Math.min(range.end, this.sourceStart - 1)
             unmapped.push({ start: range.start, end: beforeEnd })
-            // console.log(`Added (BEFORE) ${range.start} - ${beforeEnd}`)
         }
 
         if (this.sourceEnd < range.end) {
             const afterStart = Math.max(range.start, this.sourceEnd + 1)
             unmapped.push({ start: afterStart, end: range.end})
-            // console.log(`Added (AFTER) ${afterStart} - ${range.end}`)
         }
 
         if (this.sourceStart <= range.end && this.sourceEnd >= range.start) {
             const overlapStart = Math.max(range.start, this.sourceStart)
             const overlapEnd = Math.min(range.end, this.sourceEnd)
             mapped.push({ start: this.map(overlapStart), end: this.map(overlapEnd)})
-            // console.log(`Added (OVERLAP) ${overlapStart} (${this.map(overlapStart)}) - ${overlapEnd} (${this.map(overlapEnd)})`)
         }
-        // console.log(`Range ${range.start} - ${range.end} mapped to ${subRanges.map(r => `${r.start} - ${r.end}`).join(", ")} by ${this.sourceStart} - ${this.sourceEnd}`)
         return { mapped, unmapped };
     }
 }
@@ -77,7 +71,7 @@ function getContext(lines: string[]): Context {
         if (line.at(-1) === mapHeaderEndDelimiter) {
             continue
         } else if (line.length === 0) {
-            context.almanac.push([...mapRanges/*.sort((a, b) => a.sourceStart - b.sourceStart)*/])
+            context.almanac.push([...mapRanges])
             mapRanges = []
         } else if (line.includes("seeds:")) {
             context.seeds = line.split(": ").at(-1).split(" ").map(seed => parseInt(seed))
@@ -88,7 +82,7 @@ function getContext(lines: string[]): Context {
         }
     }
 
-    context.almanac.push([...mapRanges/*.sort((a, b) => a.sourceStart - b.sourceStart)*/])
+    context.almanac.push([...mapRanges])
     return context;
 }
 
@@ -135,10 +129,8 @@ function getMinSeedValueFromRanges(seedRanges: SeedRange[], almanac: Mapper[]) {
 
 function getPropagatedSeedRanges(originalSeedRanges: SeedRange[], almanac: Mapper[]): SeedRange[] {
     let propagatedSeedRanges: SeedRange[] = [...originalSeedRanges]
-    almanac.forEach((mapper, index) => {
-        // console.log("-> MAPPER ", index,  mapper)
+    almanac.forEach((mapper) => {
         propagatedSeedRanges = getPropagatedSeedRangesFromMapper(propagatedSeedRanges, mapper)
-        // console.log("-> PROPAGATED ", propagatedSeedRanges.length)
     })
     return propagatedSeedRanges;
 }
@@ -150,9 +142,7 @@ function getPropagatedSeedRangesFromMapper(seedRanges: SeedRange[], mapper: Mapp
         const { propagated: propagatedFromMapRange, toPropagate: toPropagateFromMapRange } = getPropagatedSeedRangesFromMapRange(toPropagate, mapRange);
         propagated.push(...propagatedFromMapRange)
         toPropagate = toPropagateFromMapRange
-        // console.log(propagated.length, toPropagate.length)
     })
-    // console.log("-> FINAL ", propagated.length, toPropagate.length)
     return propagated.concat(toPropagate).flat()
 }
 
