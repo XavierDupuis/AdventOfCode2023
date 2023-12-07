@@ -11,13 +11,14 @@ interface Context {
 } 
 
 const numberRegex = /\d+/g;
+const spaceRegex = /\s/g;
+const spaceAndNumberRegex = /(\d|\s)+/g;
 
-function parseContext(lines: string[]): Context {
-    const numbers = lines.map(((line) => line.match(numberRegex).map(Number)))
+function parseContext(lines: string[], inputParser: (line: string) => number[]): Context {
+    const numbers = lines.map(((line) => inputParser(line)))
     const races: RaceRecord[] = numbers[0].map((time, index) => ({ time, distance: numbers[1][index] }));
     return { races };
 }
-
 
 function getNumberOfWayToWin(race: RaceRecord): number {
     // T: race.time 
@@ -58,13 +59,17 @@ function getNumberOfWayToWin(race: RaceRecord): number {
 }
 
 function part1(lines: string[]): number {
-    const context = parseContext(lines);
+    const manyRacesParser = (line: string): number[] => line.match(numberRegex).map(Number);
+    const context = parseContext(lines, manyRacesParser);
     const numberOfWaysToWin = context.races.reduce((acc, race) => acc *= getNumberOfWayToWin(race), 1)
     return numberOfWaysToWin;
 }
 
 function part2(lines: string[]): number {
-    return 0;
+    const uniqueRaceParser = (line: string): number[] => [parseInt(line.match(spaceAndNumberRegex)[0].replace(spaceRegex, ''))];
+    const context = parseContext(lines, uniqueRaceParser);
+    const numberOfWaysToWin = context.races.reduce((acc, race) => acc *= getNumberOfWayToWin(race), 1)
+    return numberOfWaysToWin;
 }
 
 solutionner(Day.D6, part1, part2);

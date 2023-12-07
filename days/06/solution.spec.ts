@@ -34,5 +34,8 @@ describe('Day 06', () => {
     });
 
     describe('Part 2', () => {
+        it('should return 71503 since there are 71503 ways to beat the record', () => {
+            expect(part2(timesAndDistances)).toBe(71503);
+        });
     });
 });
