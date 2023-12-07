@@ -1,47 +1,58 @@
 import { solutionner } from "../../utils/solutionner";
 import { Day } from "../../utils/days";
 
-
 class MapRange {
     private delta: number;
+    public sourceEnd: number;
 
-    constructor(public destination: number, public source: number, public length: number) {
-        this.delta = destination - source
+    constructor(public destinationStart: number, public sourceStart: number, public length: number) {
+        this.delta = destinationStart - sourceStart
+        this.sourceEnd = sourceStart + length - 1
     }
 
     public isInSourceRange(input: number): boolean {
-        return input >= this.source && input <= this.source + this.length
+        return input >= this.sourceStart && input <= this.sourceStart + this.length
     }
 
     public map(input: number): number {
         if (!this.isInSourceRange(input)) {
-            throw new Error(`Input ${input} is not in range ${this.source} - ${this.source + this.length}`) 
+            throw new Error(`Input ${input} is not in range ${this.sourceStart} - ${this.sourceStart + this.length}`) 
         }
         return input + this.delta
     }
 
-    public isInDestinationRange(input: number): boolean {
-        return input >= this.destination && input <= this.destination + this.length
-    }
+    public mapRange(range: SeedRange): { mapped: SeedRange[], unmapped: SeedRange[] } {
+        const unmapped: SeedRange[] = []
+        const mapped: SeedRange[] = []
 
-    public unmap(input: number): number {
-        if (!this.isInDestinationRange(input)) {
-            throw new Error(`Input ${input} is not in range ${this.destination} - ${this.destination + this.length}`) 
+        // console.log(`Mapping ${range.start} - ${range.end} by ${this.sourceStart} - ${this.sourceEnd}`)
+
+        if (this.sourceStart > range.start) {
+            const beforeEnd = Math.min(range.end, this.sourceStart - 1)
+            unmapped.push({ start: range.start, end: beforeEnd })
+            // console.log(`Added (BEFORE) ${range.start} - ${beforeEnd}`)
         }
-        return input - this.delta
+
+        if (this.sourceEnd < range.end) {
+            const afterStart = Math.max(range.start, this.sourceEnd + 1)
+            unmapped.push({ start: afterStart, end: range.end})
+            // console.log(`Added (AFTER) ${afterStart} - ${range.end}`)
+        }
+
+        if (this.sourceStart <= range.end && this.sourceEnd >= range.start) {
+            const overlapStart = Math.max(range.start, this.sourceStart)
+            const overlapEnd = Math.min(range.end, this.sourceEnd)
+            mapped.push({ start: this.map(overlapStart), end: this.map(overlapEnd)})
+            // console.log(`Added (OVERLAP) ${overlapStart} (${this.map(overlapStart)}) - ${overlapEnd} (${this.map(overlapEnd)})`)
+        }
+        // console.log(`Range ${range.start} - ${range.end} mapped to ${subRanges.map(r => `${r.start} - ${r.end}`).join(", ")} by ${this.sourceStart} - ${this.sourceEnd}`)
+        return { mapped, unmapped };
     }
 }
 
-class SeedRange {
-    public end: number;
-
-    constructor(public start: number, length: number) {
-        this.end = start + length - 1
-    }
-
-    public isInRange(input: number): boolean {
-        return input >= this.start && input <= this.end
-    }
+interface SeedRange {
+    start: number,
+    end: number
 }
 
 type Mapper = MapRange[]
@@ -59,25 +70,25 @@ function getContext(lines: string[]): Context {
 
     const mapHeaderEndDelimiter = ":";
 
-    let mapperFunctions = []
+    let mapRanges: MapRange[] = []
 
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
         const line = lines[lineIndex];
         if (line.at(-1) === mapHeaderEndDelimiter) {
             continue
         } else if (line.length === 0) {
-            context.almanac.push([...mapperFunctions.sort((a, b) => a.source - b.source)])
-            mapperFunctions = []
+            context.almanac.push([...mapRanges/*.sort((a, b) => a.sourceStart - b.sourceStart)*/])
+            mapRanges = []
         } else if (line.includes("seeds:")) {
             context.seeds = line.split(": ").at(-1).split(" ").map(seed => parseInt(seed))
             lineIndex++
         } else {
             const [source, destination, range] = line.split(" ").map(s => parseInt(s));
-            mapperFunctions.push(new MapRange(source, destination, range))
+            mapRanges.push(new MapRange(source, destination, range))
         }
     }
 
-    context.almanac.push([...mapperFunctions.sort((a, b) => a.source - b.source)])
+    context.almanac.push([...mapRanges/*.sort((a, b) => a.sourceStart - b.sourceStart)*/])
     return context;
 }
 
@@ -104,78 +115,56 @@ function getDestinationFromMapper(mapper: Mapper, value: number) {
     return value;
 }
 
-function getSourceFromMapper(mapper: Mapper, value: number) {
-    for (const mapperFunction of mapper) { 
-        if (mapperFunction.isInDestinationRange(value)) {
-            return mapperFunction.unmap(value);
-        }
-    }
-    return value;
-}
-
 function getSeedRanges(seedsRanges: number[]): SeedRange[] {
     const seedRanges = [];
     for (let i = 0; i < seedsRanges.length; i += 2) {
-        const rangeStart = seedsRanges[i];
+        const start = seedsRanges[i];
         const rangeLength = seedsRanges[i + 1];
-        seedRanges.push(new SeedRange(rangeStart, rangeLength));
+        const end = start + rangeLength - 1;
+        seedRanges.push({ start, end });
     }
     return seedRanges;
 }
 
 function getMinSeedValueFromRanges(seedRanges: SeedRange[], almanac: Mapper[]) {
-    let min = Number.MAX_SAFE_INTEGER
-    const alamancLimits = getAlmanacLimits(almanac);
-    seedRanges.forEach((seedRange) => {
-        const minFromSeedRange = getMinSeedValueFromRange(seedRange, almanac, alamancLimits);
-        if (minFromSeedRange < min) {
-            min = minFromSeedRange;
-        }
+    const propagatedSeedRanges: SeedRange[] = [...getPropagatedSeedRanges(seedRanges, almanac)]
+    const seedBounds = propagatedSeedRanges.map((seedRange) => [seedRange.start, seedRange.end]).flat()
+    const min = seedBounds.reduce((min, value) => value < min ? value : min, Number.MAX_SAFE_INTEGER)
+    return min;
+}
+
+function getPropagatedSeedRanges(originalSeedRanges: SeedRange[], almanac: Mapper[]): SeedRange[] {
+    let propagatedSeedRanges: SeedRange[] = [...originalSeedRanges]
+    almanac.forEach((mapper, index) => {
+        // console.log("-> MAPPER ", index,  mapper)
+        propagatedSeedRanges = getPropagatedSeedRangesFromMapper(propagatedSeedRanges, mapper)
+        // console.log("-> PROPAGATED ", propagatedSeedRanges.length)
     })
-    return min;
+    return propagatedSeedRanges;
 }
 
-function getMapRangeLimits(mapRange: MapRange) {
-    const first = mapRange.destination;
-    const last = mapRange.destination + mapRange.length;
-    const before = first - 1;
-    const after = last + 1;
-    return [first, last, before, after];
+function getPropagatedSeedRangesFromMapper(seedRanges: SeedRange[], mapper: Mapper): SeedRange[] {
+    let propagated = [];
+    let toPropagate = [...seedRanges]
+    mapper.forEach((mapRange) => {
+        const { propagated: propagatedFromMapRange, toPropagate: toPropagateFromMapRange } = getPropagatedSeedRangesFromMapRange(toPropagate, mapRange);
+        propagated.push(...propagatedFromMapRange)
+        toPropagate = toPropagateFromMapRange
+        // console.log(propagated.length, toPropagate.length)
+    })
+    // console.log("-> FINAL ", propagated.length, toPropagate.length)
+    return propagated.concat(toPropagate).flat()
 }
 
-function getAlmanacLimits(almanac: Mapper[]): Set<number> {
-    let limits = new Set<number>();
-    for (const mapper of [...almanac].reverse()) {
-        for (const mapRange of mapper) {
-            const rangeLimits = getMapRangeLimits(mapRange);
-            for (const limit of rangeLimits) {
-                limits.add(limit)
-            }
-        }
-        limits = new Set([...limits].map((limit) => getSourceFromMapper(mapper, limit)))
-    }
-    return limits;
-}
-
-function getMinSeedValueFromRange(seedRange: SeedRange, almanac: Mapper[], alamancLimits: Set<number>): number {
-    const values = [...alamancLimits].filter((value) => seedRange.isInRange(value))
-    values.push(seedRange.start)
-    values.push(seedRange.end)
-    const valuesToCheck = new Set(values)
-
-    let min = Number.MAX_SAFE_INTEGER
-    for (const value of valuesToCheck) {
-        let current = value;
-        const currents = [current]
-        almanac.forEach((mapper) => {
-            current = getDestinationFromMapper(mapper, current);
-            currents.push(current)
-        });
-        if (current < min) {
-            min = current;
-        }
-    }
-    return min;
+function getPropagatedSeedRangesFromMapRange(seedRanges: SeedRange[], mapRange: MapRange): { propagated: SeedRange[], toPropagate: SeedRange[] } {
+    let propagated = [];
+    let toPropagate = [];
+    seedRanges.forEach((seedRange) => {
+        const { mapped, unmapped } = mapRange.mapRange(seedRange);
+        propagated.push(...mapped)
+        toPropagate.push(...unmapped)
+    })
+    return { propagated, toPropagate }
 }
 
 function part1(lines: string[]): number {
