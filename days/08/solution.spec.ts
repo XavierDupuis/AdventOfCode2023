@@ -44,7 +44,7 @@ describe('Day 08', () => {
     ]
 
     describe('Part 2', () => {
-        it('should return 6 steps (AAA -> BBB -> AAA -> BBB -> AAA -> BBB -> ZZZ)', () => {
+        it('should return 6 steps (3 times 11A -> 11B -> 11Z and 2 times 22A -> 22B -> 22C -> 22Z) ', () => {
             expect(part2(instructions3)).toBe(6);
         });
     });
