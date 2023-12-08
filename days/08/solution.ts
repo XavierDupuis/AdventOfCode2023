@@ -1,9 +1,6 @@
 import { solutionner } from "../../utils/solutionner";
 import { Day } from "../../utils/days";
 
-const Start = "AAA";
-const End = "ZZZ";
-
 enum Instruction {
     Left = "L",
     Right = "R",
@@ -44,18 +41,8 @@ function parseContext(lines: string[]): Context {
 function getNodeGraph(context: Context) {
     const nodeGraph = new Map<string, Node>();
     context.nodes.forEach(({ name, left, right }) => {
-        const isLeftStored = nodeGraph.has(left);
-        const leftNode = isLeftStored ? nodeGraph.get(left) : { name: left, left: null, right: null };
-        if (!isLeftStored) {
-            nodeGraph.set(left, leftNode);
-        }
-
-        const isRightStored = nodeGraph.has(right);
-        const rightNode = isRightStored ? nodeGraph.get(right) : { name: right, left: null, right: null };
-        if (!isRightStored) {
-            nodeGraph.set(right, rightNode);
-        }
-
+        const leftNode = setNode(nodeGraph, left);
+        const rightNode = setNode(nodeGraph, right);
         const newNode = nodeGraph.get(name);
         if (newNode) {
             newNode.left = leftNode;
@@ -67,32 +54,75 @@ function getNodeGraph(context: Context) {
     return nodeGraph;
 }
 
-function part1(lines: string[]): number {
-    const context = parseContext(lines);
-    const nodeGraph = getNodeGraph(context);
-
-    let current = nodeGraph.get(Start);
-
-    let instructionIndex = 0;
-    while (current.name !== End) {
-        const instruction = context.instructions.at(instructionIndex++ % context.instructions.length)
-        if (instruction === Instruction.Left) {
-            current = current?.left;
-        } else if (instruction === Instruction.Right) {
-            current = current?.right;
-        } else {
-            throw new Error(`Unknown instruction ${instruction}`);
-        }
-        if (!current) {
-            throw new Error(`Unknown node ${current} from instruction ${instruction}`);
-        }
+function setNode(nodeGraph: Map<string, Node>, name: string) {
+    const isStored = nodeGraph.has(name);
+    const node = isStored ? nodeGraph.get(name) : { name, left: null, right: null };
+    if (!isStored) {
+        nodeGraph.set(name, node);
     }
+    return node;
+}
 
+function getNumberOfSteps(start: Node, EndToken: string, instructions: string) {
+    let current = start;
+    let instructionIndex = 0;
+    while (!current.name.endsWith(EndToken)) {
+        current = getNextStep(instructions, instructionIndex++, current);
+    }
     return instructionIndex;
 }
 
+function getNextStep(instructions: string, instructionIndex: number, current: Node): Node {
+    const instruction = instructions.at(instructionIndex++ % instructions.length);
+    switch (instruction) {
+        case Instruction.Left:
+            current = current?.left;
+            break;
+        case Instruction.Right:
+            current = current?.right;
+            break;
+        default:
+            throw new Error(`Unknown instruction ${instruction}`);
+    }
+    if (!current) {
+        throw new Error(`Unknown node ${current} from instruction ${instruction}`);
+    }
+    return current;
+}
+
+function greatestCommonDivisor(x: number, y: number): number {
+    return !y ? x : greatestCommonDivisor(y, x % y);
+}
+
+
+function leastCommonDivisor(x: number, y: number) {
+    return (x * y) / greatestCommonDivisor(x, y);
+} 
+
+function arrayLeastCommonDivisor(values: number[]): number {
+    return values.reduce((lcm, current) => leastCommonDivisor(lcm, current));
+};
+
+function part1(lines: string[]): number {
+    const context = parseContext(lines);
+    const nodeGraph = getNodeGraph(context);
+    const startIdentifier = "AAA";
+    const endIdentifier = "ZZZ";
+    const numberOfSteps = getNumberOfSteps(nodeGraph.get(startIdentifier), endIdentifier, context.instructions);
+    return numberOfSteps;
+}
+
 function part2(lines: string[]): number {
-    return 0;
+    const context = parseContext(lines);
+    const nodeGraph = getNodeGraph(context);
+
+    const startIdentifier = "A";
+    const endIdentifier = "Z";
+
+    const startNodes = new Set<Node>([...nodeGraph.values()].filter((node) => node.name.endsWith(startIdentifier)));
+    const numbersOfSteps = [...startNodes].map((startNode) => getNumberOfSteps(startNode, endIdentifier, context.instructions));
+    const stepsLeastCommonDivisor = arrayLeastCommonDivisor(numbersOfSteps)
+    return stepsLeastCommonDivisor;
 }
 
 solutionner(Day.D8, part1, part2);
