@@ -21,5 +21,17 @@ describe('Day 09', () => {
     });
 
     describe('Part 2', () => {
+        it('should return -3', () => {
+            expect(part2([s1])).toBe(-3);
+        });
+        it('should return 0', () => {
+            expect(part2([s2])).toBe(0);
+        });
+        it('should return 5', () => {
+            expect(part2([s3])).toBe(5);
+        });
+        it('should return 2', () => {
+            expect(part2([s1, s2, s3])).toBe(2);
+        });
     });
 });

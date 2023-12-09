@@ -15,6 +15,17 @@ function getSequenceNextNumber(sequence: number[]): number {
     return next;
 }
 
+function getSequencePreviousNumber(sequence: number[]): number {
+    const differences = getSequenceDifferences(sequence);
+    let previous = 0;
+    let c = []
+    for (const i of differences.reverse()) {
+        let last = i.at(0);
+        previous = last - previous;
+    }
+    return previous;
+}
+
 function getSequenceDifferences(sequence: number[]) {
     const currents = [sequence];
     while (currents.at(-1).some((current) => current !== 0)) {
@@ -39,6 +50,9 @@ function part1(lines: string[]): number {
 }
 
 function part2(lines: string[]): number {
+    const sequences = parseSequences(lines);
+    const sum = sequences.reduce((acc, sequence) => acc + getSequencePreviousNumber(sequence), 0);
+    return sum;
     return 0;
 }
 
