@@ -25,68 +25,58 @@ function parseRecords(lines: string[]): Record[] {
     })
 }
 
-function arrayEqual<T>(a1: T[], a2: T[]): boolean {
-    if (a1.length !== a2.length) {
-        return false;
+function recursiveValidArrangementCount(states: State[], sizes: number[]): number {
+    if (!states.length) {
+        return sizes.length ? 0 : 1;
     }
-    for (let i = 0; i < a1.length; i++) {
-        if (a1[i] !== a2[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-function arrayIncluded<T>(partial: T[], full: T[]): boolean {
-    for (let i = 0; i < partial.length; i++) {
-        if (partial[i] > full[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-function isArrangementPossiblyValid(possibleArrangement: State[], sizes: number[]): boolean {
-    const newSizes = possibleArrangement.join('').split(NotDamagedSplitRegex).map((damagedGroup) => damagedGroup.length).filter((size) => size > 0);
-    return arrayIncluded(newSizes, sizes);
-}
-
-function isArrangementValid(possibleArrangement: State[], sizes: number[]): boolean {
-    const newSizes = possibleArrangement.join('').split(OperationnalSplitRegex).map((damagedGroup) => damagedGroup.length).filter((size) => size > 0);
-    return arrayEqual(newSizes, sizes);
-}
-
-function recursiveValidArrangementCount(states: State[], sizes: number[], unknownsIndexes: number[], currentUnknownIndex: number): number {
-    const withOperationnal = [...states]
-    withOperationnal[unknownsIndexes[currentUnknownIndex]] = State.Operationnal
-    const withDamaged = [...states]
-    withDamaged[unknownsIndexes[currentUnknownIndex]] = State.Damaged
-
-    if (currentUnknownIndex === (unknownsIndexes.length - 1)) {
-        let count = 0;
-        if (isArrangementValid(withOperationnal, sizes)) {
-            count++;
-        }
-        if (isArrangementValid(withDamaged, sizes)) {
-            count++;
-        }
-        return count
+    
+    if (!sizes.length) {
+        return states.some((state) => state === State.Damaged) ? 0 : 1;
     }
 
-    const withOperationnalCount = isArrangementPossiblyValid(withOperationnal.slice(0, unknownsIndexes[currentUnknownIndex]), sizes) 
-        ? recursiveValidArrangementCount(withOperationnal, sizes, unknownsIndexes, currentUnknownIndex + 1)
-        : 0
+    const currentState = states[0];
 
-    const withDamagedCount = isArrangementPossiblyValid(withDamaged.slice(0, unknownsIndexes[currentUnknownIndex]), sizes) 
-        ? recursiveValidArrangementCount(withDamaged, sizes, unknownsIndexes, currentUnknownIndex + 1)
-        : 0
+    let count = 0
+    if (currentState !== State.Damaged) {
+        // If currentState is Operationnal or Unknown, recursively count for all states beyond
+        count += recursiveValidArrangementCount(states.slice(1), sizes)
+    }
+    
+    if (currentState !== State.Operationnal) {
+        // If currentState is Damaged or Unknown
+        
+        const currentSize = sizes[0];
+        const canSizeFitInRemainingStates = currentSize <= states.length
+        if (!canSizeFitInRemainingStates) {
+            // The following states cannot fit the current size
+            return count;
+        }
 
-    return withOperationnalCount + withDamagedCount
+        const nextStates = states.slice(0, currentSize)
+        const nextStatesHaveAGap = nextStates.some((nextState) => nextState === State.Operationnal)
+        if (nextStatesHaveAGap) {
+            // The following states cannot fit the current size, since the states are not contiguous
+            return count;
+        }
+
+        const isLastSize = currentSize === states.length
+        const onePastState = states[currentSize] ?? State.Damaged
+        const isStateAfterSizeDamaged = onePastState === State.Damaged
+        if (isStateAfterSizeDamaged && !isLastSize) {
+            // There isnt another size that fits since
+            //      The following state is damaged (or non-existent) AND
+            //      There are no other states that could fit the size
+            return count;
+        }
+
+        // There might be other states that can fit the next size
+        count += recursiveValidArrangementCount(states.slice(currentSize + 1), sizes.slice(1))
+    }
+    return count;
 }
 
 function getValidArrangementCount(record: Record): number {
-    const unknownsIndexes = record.states.map((state, index) => state === State.Unknown ? index : -1).filter((index) => index >= 0)
-    return recursiveValidArrangementCount(record.states, record.sizes, unknownsIndexes, 0)
+    return recursiveValidArrangementCount(record.states, record.sizes)
 }
 
 function part1(lines: string[]): number {
