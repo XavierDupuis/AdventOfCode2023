@@ -52,45 +52,48 @@ function getEmptyRowsAndColumns(map: Space[][], galaxies: Coordinates[]): { empt
     return { emptyRows, emptyColumns }
 }
 
-function getExpansion(k1: number, k2: number, expanded: Set<number>): number {
-    let expansion = 0;
+function getExpansionDistance(k1: number, k2: number, expansion: number, expanded: Set<number>): number {
+    let expansionDistance = 0;
+    let deltaExpansion = expansion - 1;
     for (let k = Math.min(k1, k2); k < Math.max(k1, k2); k++) {
         if (expanded.has(k)) {
-            expansion++;
+            expansionDistance += deltaExpansion;
         }
     }
-    return expansion;
+    return expansionDistance;
 }
 
-function expandedManhattanDistance(p1: Coordinates, p2: Coordinates, emptyRows: Set<number>, emptyColumns: Set<number>) {
-    const rowExpansionDistance = getExpansion(p1.i, p2.i, emptyRows)
-    const columnExpansionDistance = getExpansion(p1.j, p2.j, emptyColumns)
-    const expansion = rowExpansionDistance + columnExpansionDistance
-    return Math.abs(p1.i - p2.i) + Math.abs(p1.j - p2.j) + expansion
+function expandedManhattanDistance(p1: Coordinates, p2: Coordinates, expansion: number, emptyRows: Set<number>, emptyColumns: Set<number>) {
+    const rowExpansionDistance = getExpansionDistance(p1.i, p2.i, expansion, emptyRows)
+    const columnExpansionDistance = getExpansionDistance(p1.j, p2.j, expansion, emptyColumns)
+    const expansionDistance = rowExpansionDistance + columnExpansionDistance
+    return Math.abs(p1.i - p2.i) + Math.abs(p1.j - p2.j) + expansionDistance
 }
 
-function getExpandedDistanceForGalaxies(galaxies: Coordinates[], emptyRows: Set<number>, emptyColumns: Set<number>) {
+function getExpandedDistanceForGalaxies(galaxies: Coordinates[], expansion: number, emptyRows: Set<number>, emptyColumns: Set<number>) {
     let totalDistance = 0;
     for (let i = 0; i < galaxies.length; i++) {
         for (let j = i; j < galaxies.length; j++) {
-            totalDistance += expandedManhattanDistance(galaxies[i], galaxies[j], emptyRows, emptyColumns);
+            totalDistance += expandedManhattanDistance(galaxies[i], galaxies[j], expansion, emptyRows, emptyColumns);
         }
     }
     return totalDistance;
 }
 
 function part1(lines: string[]): number {
+    const expansion = 2;
     const { map, galaxies } = parseUniverse(lines);
     const { emptyRows, emptyColumns } = getEmptyRowsAndColumns(map, galaxies);
-
-    const totalDistance = getExpandedDistanceForGalaxies(galaxies, emptyRows, emptyColumns);
+    const totalDistance = getExpandedDistanceForGalaxies(galaxies, expansion, emptyRows, emptyColumns, );
     return totalDistance;
 }
 
-
-
 function part2(lines: string[]): number {
-    return 0;
+    const expansion = Math.pow(10, 6)
+    const { map, galaxies } = parseUniverse(lines);
+    const { emptyRows, emptyColumns } = getEmptyRowsAndColumns(map, galaxies);
+    const totalDistance = getExpandedDistanceForGalaxies(galaxies, expansion, emptyRows, emptyColumns);
+    return totalDistance;
 }
 
 solutionner(Day.D11, part1, part2);

@@ -21,5 +21,8 @@ describe('Day 11', () => {
     });
 
     describe('Part 2', () => {
+        it('should return 82000210 for the sum of shortest paths of 36 pairs of galaxy (with expansion 10^6)', () => {
+            expect(part2(universe1)).toBe(82000210);
+        });
     });
 });
