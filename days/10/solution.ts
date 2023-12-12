@@ -147,15 +147,96 @@ function numberOfStepsToFarthestPoint(maze: Context) {
     return Math.ceil(loopLength / 2);
 }
 
+function getOnlyLoopConnections(maze: Context, loopCoordinates: Coordinates[]) {
+    const onlyLoopMaze = [];
+    for (let i = 0; i < maze.tiles.length; i++) {
+        let row = [];
+        for (let j = 0; j < maze.tiles[0].length; j++) {
+            row.push(Tile.Empty);
+        }
+        onlyLoopMaze.push([...row]);
+        row = [];
+    }
+    for (const aLoopCoordinates of loopCoordinates) {
+        const i = aLoopCoordinates.i;
+        const j = aLoopCoordinates.j;
+        onlyLoopMaze[i][j] = maze.tiles[i][j];
+    }
+    return onlyLoopMaze;
+}
+
+function getNumberOfTilesInsideLoop(maze: Context, onlyLoopMaze: any[]) {
+    // Assumes first tile is outside the loop
+    let insideCount = 0;
+    for (let i = 0; i < maze.tiles.length; i++) {
+        let isInside = false;
+        let previousAngledConnector = null;
+        for (let j = 0; j < maze.tiles[0].length; j++) {
+            const tile = onlyLoopMaze[i][j];
+            switch (tile) {
+                case Tile.Empty:
+                    if (isInside) {
+                        insideCount++;
+                    }
+                    break;
+                case Tile.TopLeft:
+                case Tile.BottomLeft:
+                    // Loop boundary is crossed
+                    isInside = !isInside;
+                    // Remember this angled connector so as not to misread crossing the loop boundary again
+                    previousAngledConnector = tile;
+                    break;
+                case Tile.Vertical:
+                    // Loop boundary is crossed
+                    isInside = !isInside;
+                    break;
+                case Tile.BottomRight:
+                    // If bottom right connector, loop boundary is crossed only if previous connector is not top left (or start)
+                    if (previousAngledConnector === Tile.TopLeft || previousAngledConnector === Tile.Start) {
+                        // ┌──...──┘
+                        previousAngledConnector = null;
+                    } else {
+                        // └──...──┘
+                        isInside = !isInside;
+                    }
+                    break;
+                case Tile.TopRight:
+                    // If rop right connector, loop boundary is crossed only if previous connector is not bottom left (or start)
+                    if (previousAngledConnector === Tile.BottomLeft || previousAngledConnector === Tile.Start) {
+                        // └──...──┐
+                        previousAngledConnector = null;
+                    } else {
+                        // ┌──...──┐
+                        isInside = !isInside;
+                    }
+                    break;
+                case Tile.Start:
+                    if (previousAngledConnector) { 
+                        previousAngledConnector = null;
+                        isInside = !isInside;
+                    } else {
+                        previousAngledConnector = tile;
+                    }
+                    break;
+            }
+        }
+    }
+
+    return insideCount;
+}
+
 function part1(lines: string[]): number {
     const maze = parseMaze(lines);
     const numberOfSteps = numberOfStepsToFarthestPoint(maze);
     return numberOfSteps;
 }
 
-
 function part2(lines: string[]): number {
-    return 0;
+    const maze = parseMaze(lines);
+    const loopCoordinates = getLoopCoordinates(maze);
+    const onlyLoopConnections = getOnlyLoopConnections(maze, loopCoordinates);
+    const insideCount = getNumberOfTilesInsideLoop(maze, onlyLoopConnections);
+    return insideCount;
 }
 
 solutionner(Day.D10, part1, part2);
