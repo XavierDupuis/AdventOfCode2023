@@ -4,7 +4,12 @@ import { Dir } from "fs";
 
 interface Context {
     tiles: Tile[][];
-    start: { i: number, j: number };
+    start: Coordinates;
+}
+
+interface Coordinates {
+    i: number;
+    j: number;
 }
 
 enum Tile {
@@ -64,7 +69,7 @@ const NextDirections: { [key in Tile]: Set<Direction> } = {
     [Tile.Empty]: new Set(),
 }
 
-const Mouvements: { [key in Direction]: { i: number, j: number} } = {
+const Mouvements: { [key in Direction]: Coordinates } = {
     [Direction.Up]: { i: -1, j: 0 },
     [Direction.Down]: { i: 1, j: 0 },
     [Direction.Left]: { i: 0, j: -1 } ,
@@ -73,7 +78,7 @@ const Mouvements: { [key in Direction]: { i: number, j: number} } = {
 
 function parseMaze(lines: string[]): Context {
     const tiles = []
-    let start: { i: number, j: number } = null; 
+    let start: Coordinates = null; 
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         let row = []
@@ -104,12 +109,13 @@ function mazeSafeGet(maze: Context, i: number, j: number): Tile {
     return null;
 }
 
-function numberOfStepsToFarthestPoint(maze: Context) {
-    let steps = 0;
+function getLoopCoordinates(maze: Context): Coordinates[] { 
     let { i, j } = maze.start;
     let current = maze.tiles[i][j];
     let nextDirections = new Set(NextDirections[current]);
     let isBackToStart = false;
+
+    let loopCoordinates = [];
 
     while (!isBackToStart) {
 
@@ -123,17 +129,22 @@ function numberOfStepsToFarthestPoint(maze: Context) {
             // If the tile in the specified direction is a valid connector
             if (Connectors[nextDirection].has(adjacentTile)) {
                 current = adjacentTile;
-                steps++;
                 i = adjacentI;
                 j = adjacentJ;
+                loopCoordinates.push({ i, j });
                 nextDirections = excludeDirections(NextDirections[adjacentTile], OppositeDirection[nextDirection]);
                 break;
             }
         }
-        isBackToStart = current === Tile.Start && steps > 0;
+        isBackToStart = current === Tile.Start && loopCoordinates.length > 0;
     }
 
-    return Math.ceil(steps / 2);
+    return loopCoordinates;
+}
+
+function numberOfStepsToFarthestPoint(maze: Context) {
+    const loopLength = getLoopCoordinates(maze).length;
+    return Math.ceil(loopLength / 2);
 }
 
 function part1(lines: string[]): number {
