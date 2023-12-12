@@ -36,31 +36,58 @@ function arrayEqual<T>(a1: T[], a2: T[]): boolean {
     }
     return true;
 }
+
+function arrayIncluded<T>(partial: T[], full: T[]): boolean {
+    for (let i = 0; i < partial.length; i++) {
+        if (partial[i] > full[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function isArrangementPossiblyValid(possibleArrangement: State[], sizes: number[]): boolean {
+    const newSizes = possibleArrangement.join('').split(NotDamagedSplitRegex).map((damagedGroup) => damagedGroup.length).filter((size) => size > 0);
+    return arrayIncluded(newSizes, sizes);
+}
+
 function isArrangementValid(possibleArrangement: State[], sizes: number[]): boolean {
     const newSizes = possibleArrangement.join('').split(OperationnalSplitRegex).map((damagedGroup) => damagedGroup.length).filter((size) => size > 0);
     return arrayEqual(newSizes, sizes);
 }
 
-function getValidArrangementCount(record: Record): number {
-    const unknownsIndexes = record.states.map((state, index) => state === State.Unknown ? index : -1).filter((index) => index >= 0)
-    const unknownsCount = unknownsIndexes.length
-    const possibleArrangementCount = Math.pow(2, unknownsCount)
-    let validArrangementCount = 0;
-    for (let i = 0; i < possibleArrangementCount; i++) {
-        const possibleArrangement = [...record.states]
-        for (let j = 0; j < unknownsCount; j++) {
-            const unknownsIndex = unknownsIndexes[j]
-            const newState = (i >> j) % 2 ? State.Damaged : State.Operationnal;
-            possibleArrangement[unknownsIndex] = newState
-        }
-        if (isArrangementValid(possibleArrangement, record.sizes)) {
-            validArrangementCount++;
-        }
+function recursiveValidArrangementCount(states: State[], sizes: number[], unknownsIndexes: number[], currentUnknownIndex: number): number {
+    const withOperationnal = [...states]
+    withOperationnal[unknownsIndexes[currentUnknownIndex]] = State.Operationnal
+    const withDamaged = [...states]
+    withDamaged[unknownsIndexes[currentUnknownIndex]] = State.Damaged
 
+    if (currentUnknownIndex === (unknownsIndexes.length - 1)) {
+        let count = 0;
+        if (isArrangementValid(withOperationnal, sizes)) {
+            count++;
+        }
+        if (isArrangementValid(withDamaged, sizes)) {
+            count++;
+        }
+        return count
     }
-    return validArrangementCount;
+
+    const withOperationnalCount = isArrangementPossiblyValid(withOperationnal.slice(0, unknownsIndexes[currentUnknownIndex]), sizes) 
+        ? recursiveValidArrangementCount(withOperationnal, sizes, unknownsIndexes, currentUnknownIndex + 1)
+        : 0
+
+    const withDamagedCount = isArrangementPossiblyValid(withDamaged.slice(0, unknownsIndexes[currentUnknownIndex]), sizes) 
+        ? recursiveValidArrangementCount(withDamaged, sizes, unknownsIndexes, currentUnknownIndex + 1)
+        : 0
+
+    return withOperationnalCount + withDamagedCount
 }
 
+function getValidArrangementCount(record: Record): number {
+    const unknownsIndexes = record.states.map((state, index) => state === State.Unknown ? index : -1).filter((index) => index >= 0)
+    return recursiveValidArrangementCount(record.states, record.sizes, unknownsIndexes, 0)
+}
 
 function part1(lines: string[]): number {
     const records = parseRecords(lines);
