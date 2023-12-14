@@ -52,7 +52,7 @@ function isTerrainSymmetric(
         beforeIndex--;
         afterIndex++;
     }
-    return true;
+    return remainingTolerance == 0;
 }
 
 function isTerrainHorizontallySymmetric(
