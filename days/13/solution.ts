@@ -39,8 +39,8 @@ function isTerrainSymmetric(
     validator: (line1: string, line2: string) => { isValid: boolean, toleranceUsed: number },
     remainingTolerance: number
 ): boolean {
-    let beforeIndex = possibleReflectiveIndex - 1;
-    let afterIndex = possibleReflectiveIndex;
+    let beforeIndex = possibleReflectiveIndex - 2;
+    let afterIndex = possibleReflectiveIndex + 1;
     while (beforeIndex >= lowerBound && afterIndex < upperBound) {
         const rowBefore = getLine(terrain, beforeIndex);
         const rowAfter = getLine(terrain, afterIndex);
@@ -105,17 +105,31 @@ function getReflection(
 
 function part1(lines: string[]): number {
     const terrains = parseTerrains(lines);
+    const tolerance = 0;
     const exactValidator = (line1: string, line2: string) => ({ isValid: line1 === line2, toleranceUsed: 0 });
-    const reflections = terrains.map((terrain) => getReflection(terrain, exactValidator, 0));
+    const reflections = terrains.map((terrain) => getReflection(terrain, exactValidator, tolerance));
     const reflectionSum = reflections.reduce((sum, reflection) => sum + reflection.beforeCount * reflection.type, 0);
     return reflectionSum;
 }
 
 function part2(lines: string[]): number {
-    return 0;
+    const terrains = parseTerrains(lines);
+    const tolerance = 1;
+    const offByOneValidator = (line1: string, line2: string) => {
+        let toleranceUsed = 0;
+        for (let i = 0; i < line1.length; i++) {
+            if (line1[i] !== line2[i]) {
+                toleranceUsed++;
+            }
+        }
+        return { isValid: toleranceUsed <= tolerance, toleranceUsed };
+    };
+    const reflections = terrains.map((terrain) => getReflection(terrain, offByOneValidator, tolerance));
+    const reflectionSum = reflections.reduce((sum, reflection) => sum + reflection.beforeCount * reflection.type, 0);
+    return reflectionSum;
 }
 
 solutionner(Day.D13, part1, part2);
 export { part1, part2 };
 
-
+// Too high : 38664

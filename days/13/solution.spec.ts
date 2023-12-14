@@ -26,5 +26,8 @@ describe('Day 13', () => {
     });
 
     describe('Part 2', () => {
+        it('should return 400 for 3 rows above and 1 row above', () => {
+            expect(part2(terrains)).toBe(400);
+        });
     });
 });
