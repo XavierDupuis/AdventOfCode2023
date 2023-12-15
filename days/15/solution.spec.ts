@@ -12,5 +12,8 @@ describe('Day 15', () => {
     });
 
     describe('Part 2', () => {
+        it('should return 145 as the focusing power', () => {
+            expect(part2(sequence)).toBe(145);
+        });
     });
 });
