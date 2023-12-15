@@ -21,5 +21,8 @@ describe('Day 14', () => {
     });
 
     describe('Part 2', () => {
+        it('should return 64 after 1000000000 cycles', () => {
+            expect(part2(platform)).toBe(64);
+        });
     });
 });
