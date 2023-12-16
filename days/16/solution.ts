@@ -119,8 +119,7 @@ function hasCoordinates(energizedCoordinates: Set<Coordinates>, coordinates: Coo
     return contains(energizedCoordinates, coordinates, compareCoordinates);
 }
 
-
-function getEnergizedCoordinates(startingBeam: { coordinates: { i: number; j: number; }; direction: Direction; }, layout: Tile[][]) {
+function getEnergizedCoordinatesCount(startingBeam: { coordinates: { i: number; j: number; }; direction: Direction; }, layout: Tile[][]) {
     const beams: Beam[] = [startingBeam];
     const energizedTiles = new Set<Beam>();
 
@@ -142,19 +141,58 @@ function getEnergizedCoordinates(startingBeam: { coordinates: { i: number; j: nu
             uniqueCoordinates.add(beam.coordinates);
         }
     }
-    
-    return uniqueCoordinates;
+
+    return uniqueCoordinates.size;
+}
+
+function getStartingBeam(
+    direction: Direction, 
+    lineIndex: number, 
+    lowerBound: number, 
+    upperBound: number
+): { coordinates: Coordinates; direction: Direction; } {
+    switch (direction) {
+        case Direction.Up:
+            return { coordinates: { i: upperBound, j: lineIndex }, direction };
+        case Direction.Down:
+            return { coordinates: { i: lowerBound, j: lineIndex }, direction };
+        case Direction.Left:
+            return { coordinates: { i: lineIndex, j: upperBound }, direction };
+        case Direction.Right:
+            return { coordinates: { i: lineIndex, j: lowerBound }, direction };
+    }
+}
+
+function getMaxEnergizedCoordinatesCount(layout: Tile[][]) {
+    let maxEnergizedCoordinates = 0;
+    for (let i = 0; i < layout.length; i++) {
+        for (const direction of [Direction.Left, Direction.Right]) {
+            const startingBeam = getStartingBeam(direction, i, 0, layout[0].length - 1);
+            const energizedCoordinatesCount = getEnergizedCoordinatesCount(startingBeam, layout);
+            maxEnergizedCoordinates = Math.max(maxEnergizedCoordinates, energizedCoordinatesCount);
+        }
+    }
+    for (let j = 0; j < layout[0].length; j++) {
+        for (const direction of [Direction.Up, Direction.Down]) {
+            const startingBeam = getStartingBeam(direction, j, 0, layout.length - 1);
+            const energizedCoordinatesCount = getEnergizedCoordinatesCount(startingBeam, layout);
+            maxEnergizedCoordinates = Math.max(maxEnergizedCoordinates, energizedCoordinatesCount);
+        }
+    }
+    return maxEnergizedCoordinates;
 }
 
 function part1(lines: string[]): number {
     const layout = parseLayout(lines);
     const startingBeam = { coordinates: { i: 0, j: 0 }, direction: Direction.Right }
-    const energizedCoordinates = getEnergizedCoordinates(startingBeam, layout);
-    return energizedCoordinates.size;
+    const energizedCoordinatesCount = getEnergizedCoordinatesCount(startingBeam, layout);
+    return energizedCoordinatesCount;
 }
 
 function part2(lines: string[]): number {
-    return 0;
+    const layout = parseLayout(lines);
+    let maxEnergizedCoordinates = getMaxEnergizedCoordinatesCount(layout);
+    return maxEnergizedCoordinates;
 }
 
 solutionner(Day.D16, part1, part2);

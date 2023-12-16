@@ -21,5 +21,8 @@ describe('Day 16', () => {
     });
 
     describe('Part 2', () => {
+        it('should return 51 as the optimal count of energized tiles', () => {
+            expect(part2(layout)).toBe(51);
+        });
     });
 });
