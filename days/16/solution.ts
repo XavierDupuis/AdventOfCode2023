@@ -119,7 +119,7 @@ function hasCoordinates(energizedCoordinates: Set<Coordinates>, coordinates: Coo
     return contains(energizedCoordinates, coordinates, compareCoordinates);
 }
 
-function getEnergizedCoordinatesCount(startingBeam: { coordinates: { i: number; j: number; }; direction: Direction; }, layout: Tile[][]) {
+function getEnergizedCoordinatesCount(startingBeam: Beam, layout: Tile[][]): number {
     const beams: Beam[] = [startingBeam];
     const energizedTiles = new Set<Beam>();
 
