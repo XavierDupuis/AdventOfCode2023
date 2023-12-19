@@ -76,17 +76,21 @@ function getNextCoordinates(coordinates: Coordinates, direction: Direction): Coo
     return { i, j };
 }
 
-function getNextMovements(mouvement: Mouvement, heatmap: HeatMap, maxConsecutiveSteps: number): Mouvement[] {
+function getNextMovements(mouvement: Mouvement, heatmap: HeatMap, isNextMouvementValid: (parent: Mouvement, mouvement: Mouvement) => boolean): Mouvement[] {
     const nextMovements: Mouvement[] = [];
     const nextDirections = NextDirection[mouvement.direction];
     for (const nextDirection of nextDirections) {
         const nextCoordinates = getNextCoordinates(mouvement.coordinates, nextDirection);
-        const consecutiveSteps = mouvement.direction === nextDirection ? mouvement.consecutiveSteps + 1 : 0;
-        const isConsecutiveStepsValid = consecutiveSteps < maxConsecutiveSteps;
         const isMouvementInBounds = isInBounds(nextCoordinates, heatmap);
-        if (isMouvementInBounds && isConsecutiveStepsValid) {
-            const cumulatedHeatLoss = mouvement.cumulatedHeatLoss + getHeatLoss(heatmap, nextCoordinates);
-            nextMovements.push({ coordinates: nextCoordinates, direction: nextDirection, cumulatedHeatLoss, consecutiveSteps, parent: mouvement });
+        if (!isMouvementInBounds) {
+            continue;
+        }
+        const consecutiveSteps = mouvement.direction === nextDirection ? mouvement.consecutiveSteps + 1 : 0;
+        const cumulatedHeatLoss = mouvement.cumulatedHeatLoss + getHeatLoss(heatmap, nextCoordinates);
+        const nextMouvement = { coordinates: nextCoordinates, direction: nextDirection, cumulatedHeatLoss, consecutiveSteps, parent: mouvement };
+        const isMouvementValid = isNextMouvementValid(mouvement, nextMouvement);
+        if (isMouvementValid) {
+            nextMovements.push(nextMouvement);
         }
     }
     return nextMovements;
@@ -126,9 +130,10 @@ function getPriority(heatmap: HeatMap, mouvement: Mouvement, previousMouvement: 
     return getCost(heatmap, mouvement, previousMouvement) + getHeuristic(heatmap, mouvement, end);
 }
 
-function aStarSearch(heatmap: HeatMap, maxConsecutiveSteps: number, start: Coordinates, end: Coordinates): number {
+function aStarSearch(heatmap: HeatMap, isNextMouvementValid: (parent: Mouvement, mouvement: Mouvement) => boolean, start: Coordinates, end: Coordinates): number {
     const visited: Set<String> = new Set();
     const queue: PriorityQueue<Mouvement> = new PriorityQueue((a, b) => a[0] - b[0]);
+    queue.push({ coordinates: start, direction: Direction.East, cumulatedHeatLoss: 0, consecutiveSteps: 0, parent: null }, 0);
     queue.push({ coordinates: start, direction: Direction.South, cumulatedHeatLoss: 0, consecutiveSteps: 0, parent: null }, 0);
 
     while(!queue.isEmpty) {
@@ -145,7 +150,7 @@ function aStarSearch(heatmap: HeatMap, maxConsecutiveSteps: number, start: Coord
             return mouvement.cumulatedHeatLoss;
         }
 
-        const nextMovements = getNextMovements(mouvement, heatmap, maxConsecutiveSteps);
+        const nextMovements = getNextMovements(mouvement, heatmap, isNextMouvementValid);
         nextMovements.map((nextMovement) => queue.push(nextMovement, getPriority(heatmap, nextMovement, mouvement, end)));
     }
     return 0;
@@ -154,14 +159,30 @@ function aStarSearch(heatmap: HeatMap, maxConsecutiveSteps: number, start: Coord
 function part1(lines: string[]): number {
     const heatmap = parseHeatMap(lines);
     const maxConsecutiveSteps = 3;
+    const isNextMouvementValid = (parent: Mouvement, mouvement: Mouvement): boolean => mouvement.consecutiveSteps < maxConsecutiveSteps;
     const start: Coordinates = { i: 0, j: 0 };
     const end: Coordinates = { i: heatmap.length - 1, j: heatmap[0].length - 1 };
-    const minHeatLoss = aStarSearch(heatmap, maxConsecutiveSteps, start, end);
+    const minHeatLoss = aStarSearch(heatmap, isNextMouvementValid, start, end);
     return minHeatLoss;
 }
 
 function part2(lines: string[]): number {
-    return 0;
+    const heatmap = parseHeatMap(lines);
+    const minConsecutiveSteps = 4;
+    const maxConsecutiveSteps = 10;
+    const isNextMouvementValid = (parent: Mouvement, mouvement: Mouvement): boolean => {
+        if (parent.consecutiveSteps + 1 < minConsecutiveSteps) {
+            return mouvement.direction === parent.direction;
+        }
+        if (parent.consecutiveSteps + 1 > maxConsecutiveSteps) {
+            return false;
+        }
+        return true;
+    }
+    const start: Coordinates = { i: 0, j: 0 };
+    const end: Coordinates = { i: heatmap.length - 1, j: heatmap[0].length - 1 };
+    const minHeatLoss = aStarSearch(heatmap, isNextMouvementValid, start, end);
+    return minHeatLoss;
 }
 
 solutionner(Day.D17, part1, part2);

@@ -24,5 +24,8 @@ describe('Day 17', () => {
     });
 
     describe('Part 2', () => {
+        it('should return 94 as the minimized heat loss', () => {
+            expect(part2(heatMap)).toBe(94);
+        });
     });
 });
