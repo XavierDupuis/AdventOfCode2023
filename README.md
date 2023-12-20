@@ -39,8 +39,8 @@ The output will display:
 
 ```
 -> 🎄 Day xx <-
-⚡ Part 1: XXXXXXXX
-⚡ Part 2: XXXXXXXX
+⚡ Part 1 : XXXXXXXX
+⚡ Part 2 : XXXXXXXX
 ```
 
 ## Running Tests
