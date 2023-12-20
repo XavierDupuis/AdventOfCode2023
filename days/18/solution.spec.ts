@@ -25,5 +25,8 @@ describe('Day 18', () => {
     });
 
     describe('Part 2', () => {
+        it('should return 952408144115 the number of cubic meters of lava', () => {
+            expect(part2(digPlan)).toBe(952408144115);
+        });
     });
 });

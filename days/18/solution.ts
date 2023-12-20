@@ -8,6 +8,16 @@ enum Direction {
     Right = 'R'
 }
 
+function numberToDirection(value: number): Direction | null {
+    switch (value) {
+        case 0: return Direction.Right;
+        case 1: return Direction.Down;
+        case 2: return Direction.Left;
+        case 3: return Direction.Up;
+        default: return null;
+    }
+}
+
 interface Coordinates {
     i: number;
     j: number;
@@ -86,6 +96,15 @@ function getPolygonPerimeter(points: Coordinates[]): number {
     return perimeter;
 }
 
+function getFixedDigPlan(digPlan: DigPlan): DigPlan {
+    return [...digPlan].map(({ direction: _wrongDirection, distance: _wrongDistance, color }) => {
+        const directionValue = parseInt(color.at(-2))
+        const direction = numberToDirection(directionValue);
+        const distance = parseInt(color.slice(2, -2), 16);
+        return { direction, distance, color };
+    });
+}
+
 function part1(lines: string[]): number {
     const digPlan = parseDigPlan(lines);
     const points = getPolygonPoints(digPlan);
@@ -97,7 +116,13 @@ function part1(lines: string[]): number {
 }
 
 function part2(lines: string[]): number {
-    return 0;
+    const digPlan = getFixedDigPlan(parseDigPlan(lines));
+    const points = getPolygonPoints(digPlan);
+    const area = getPolygonArea(points);
+    const boundaryPointsCount = getPolygonPerimeter(points);
+    const internalPointsCount = getInternalPointCount(area, boundaryPointsCount);
+    const totalArea = internalPointsCount + boundaryPointsCount;
+    return totalArea;
 }
 
 solutionner(Day.D18, part1, part2);
