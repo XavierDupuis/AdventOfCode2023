@@ -1,6 +1,6 @@
 import { solutionner } from "../../utils/solutionner";
 import { Day } from "../../utils/days";
-import { get } from "http";
+import Heap from "heap-js";
 
 type HeatMap = number[][];
 
@@ -22,33 +22,7 @@ interface Mouvement {
     consecutiveSteps: number;
     cumulatedHeatLoss: number;
     parent: Mouvement | null;
-}
-
-class PriorityQueue<T> {
-    private data: [number, T][] = [];
-
-    constructor(private comparer: (a: [number, T], b: [number, T]) => number) {}
-
-    public push(item: T, priority: number): void {
-        let index = this.data.length - 1;
-        while (index >= 0 && this.comparer(this.data[index], [priority, item]) < 0) {
-            index--;
-        }
-        this.data.splice(index + 1, 0, [priority, item]);
-    }
-    
-    public get size(): number {
-        return this.data.length;
-    }
-
-    public get isEmpty(): boolean {
-        return this.size == 0;
-    }
-
-    public pop(): T | null {
-        return this.data.pop()?.[1];
-    }
-
+    priority: number;
 }
 
 function parseHeatMap(lines: string[]): HeatMap {
@@ -75,7 +49,7 @@ function getNextCoordinates(coordinates: Coordinates, direction: Direction): Coo
     return { i, j };
 }
 
-function getNextMovements(mouvement: Mouvement, heatmap: HeatMap, isNextMouvementValid: (mouvement: Mouvement) => boolean): Mouvement[] {
+function getNextMovements(mouvement: Mouvement, heatmap: HeatMap, isNextMouvementValid: (mouvement: Mouvement) => boolean, end: Coordinates): Mouvement[] {
     const nextMovements: Mouvement[] = [];
     const nextDirections = NextDirection[mouvement.direction];
     for (const nextDirection of nextDirections) {
@@ -86,7 +60,8 @@ function getNextMovements(mouvement: Mouvement, heatmap: HeatMap, isNextMouvemen
         }
         const consecutiveSteps = mouvement.direction === nextDirection ? mouvement.consecutiveSteps + 1 : 0;
         const cumulatedHeatLoss = mouvement.cumulatedHeatLoss + getHeatLoss(heatmap, nextCoordinates);
-        const nextMouvement = { coordinates: nextCoordinates, direction: nextDirection, cumulatedHeatLoss, consecutiveSteps, parent: mouvement };
+        const priority = getPriority(heatmap, nextCoordinates, mouvement, nextCoordinates);
+        const nextMouvement = { coordinates: nextCoordinates, direction: nextDirection, cumulatedHeatLoss, consecutiveSteps, parent: mouvement, priority };
         const isMouvementValid = isNextMouvementValid(nextMouvement);
         if (isMouvementValid) {
             nextMovements.push(nextMouvement);
@@ -104,7 +79,6 @@ function compareCoordinates(c1: Coordinates, c2: Coordinates): boolean {
 }
 
 function hash(mouvement: Mouvement): string {
-    // return `${mouvement.coordinates.i},${mouvement.coordinates.j},${mouvement.consecutiveSteps},${mouvement.parent?.direction}`;
     return `${mouvement.coordinates.i},${mouvement.coordinates.j},${mouvement.consecutiveSteps},${mouvement.direction}`;
 }
 
@@ -119,26 +93,26 @@ function manhattanDistance(c1: Coordinates, c2: Coordinates): number {
     return Math.abs(c1.i - c2.i) + Math.abs(c1.j - c2.j);
 }
 
-function getHeuristic(mouvement: Mouvement, end: Coordinates): number {
-    return manhattanDistance(mouvement.coordinates, end);
+function getHeuristic(start: Coordinates, end: Coordinates): number {
+    return manhattanDistance(start, end);
 }
 
-function getCost(heatmap: HeatMap, mouvement: Mouvement, previousMouvement: Mouvement): number {
-    return getHeatLoss(heatmap, mouvement.coordinates) + previousMouvement.cumulatedHeatLoss;
+function getCost(heatmap: HeatMap, coordinates: Coordinates, previousMouvement: Mouvement): number {
+    return getHeatLoss(heatmap, coordinates) + previousMouvement.cumulatedHeatLoss;
 }
 
-function getPriority(heatmap: HeatMap, mouvement: Mouvement, previousMouvement: Mouvement, end: Coordinates): number {
-    return getCost(heatmap, mouvement, previousMouvement) + getHeuristic(mouvement, end);
+function getPriority(heatmap: HeatMap, coordinates: Coordinates, previousMouvement: Mouvement, end: Coordinates): number {
+    return getCost(heatmap, coordinates, previousMouvement) + getHeuristic(coordinates, end);
 }
 
 function aStarSearch(heatmap: HeatMap, isNextMouvementValid: (mouvement: Mouvement) => boolean, start: Coordinates, end: Coordinates): number {
-    const queue: PriorityQueue<Mouvement> = new PriorityQueue((a, b) => a[0] - b[0]);
-    queue.push({ coordinates: start, direction: Direction.South, cumulatedHeatLoss: 0, consecutiveSteps: 0, parent: null }, 0);
-    queue.push({ coordinates: start, direction: Direction.East, cumulatedHeatLoss: 0, consecutiveSteps: 0, parent: null }, 0);
+    const queue = new Heap<Mouvement>((a, b) => a.priority - b.priority);
+    queue.push({ coordinates: start, direction: Direction.South, cumulatedHeatLoss: 0, consecutiveSteps: 0, parent: null, priority: 0 });
+    queue.push({ coordinates: start, direction: Direction.East, cumulatedHeatLoss: 0, consecutiveSteps: 0, parent: null, priority: 0 });
     
     const visited: Set<String> = new Set();
 
-    while (!queue.isEmpty) {
+    while (!queue.isEmpty()) {
         const mouvement = queue.pop()!;
         const { i, j } = mouvement.coordinates;
 
@@ -166,8 +140,8 @@ function aStarSearch(heatmap: HeatMap, isNextMouvementValid: (mouvement: Mouveme
             return mouvement.cumulatedHeatLoss;
         }
 
-        const nextMovements = getNextMovements(mouvement, heatmap, isNextMouvementValid);
-        nextMovements.map((nextMovement) => queue.push(nextMovement, getPriority(heatmap, nextMovement, mouvement, end)));
+        const nextMovements = getNextMovements(mouvement, heatmap, isNextMouvementValid, end);
+        nextMovements.map((nextMovement) => queue.push(nextMovement));
     }
     
     return 0;
