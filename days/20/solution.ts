@@ -1,5 +1,28 @@
 import { solutionner } from "../../utils/solutionner";
 import { Day } from "../../utils/days";
+import { get } from "http";
+
+class Queue<T> {
+    private data: T[] = [];
+  
+    enqueue(item: T): void {
+        this.data.push(item);
+    }
+
+    dequeue(): T | undefined {
+        return this.data.shift();
+    }
+
+    get size(): number {
+      return this.data.length;
+    }
+
+    get isEmpty(): boolean {
+        return this.size === 0;
+    }
+}
+
+type PulseTransition = { from: string, pulse: Pulse, to: string }
 
 enum ModuleType {
     FlipFlop = '%',
@@ -8,8 +31,8 @@ enum ModuleType {
 }
 
 enum Pulse {
-    Low = '0',
-    High = '1'
+    Low = 'low',
+    High = 'high'
 }
 
 enum FlipFlopState {
@@ -21,43 +44,26 @@ type AnyModule = FlipFlop | Conjuction | Broadcaster;
 
 abstract class Module<State> {
     constructor (
-        // TODO : change to protected
-        public name: string, 
+        protected name: string, 
         protected type: ModuleType, 
         protected inputs: string[],
         protected outputs: string[],
     ) { }
 
-    // TODO : change to protected
-    public state: State
+    protected state: State
 
-    public abstract receive(from: string, pulse: Pulse, modules: Map<string, AnyModule>): { lowCount: number, highCount: number};
+    public abstract receive(from: string, pulse: Pulse): PulseTransition[];
 
-    protected send(pulse: Pulse, modules: Map<string, AnyModule>): { lowCount: number, highCount: number} {
-        const propagatedCounts = this.outputs.reduce(({ lowCount, highCount }, output) => {
-            // console.log(`Sending ${pulse} from ${this.name} to ${output}`);
-            const to = modules.get(output);
-            if (to) {
-                const propagatedPulses = to.receive(this.name, pulse, modules);
-                return { lowCount: lowCount + propagatedPulses.lowCount, highCount: highCount + propagatedPulses.highCount };
-            }
-            // console.warn(`Module ${output} not found`)
-            return { lowCount: 0, highCount: 0 };
-        }, { lowCount: 0, highCount: 0 })
-
-        if (pulse === Pulse.Low) {
-            return { lowCount: propagatedCounts.lowCount + this.outputs.length, highCount: propagatedCounts.highCount };
-        } else {
-            return { lowCount: propagatedCounts.lowCount, highCount: propagatedCounts.highCount + this.outputs.length };
-        }
+    protected createOutputPulses(pulse: Pulse): PulseTransition[] {
+        return this.outputs.map((output) => ({ from: this.name, pulse, to: output }));
     }
-    
+
     public abstract get isAtOriginalState(): boolean;
 }
 
 class FlipFlop extends Module<FlipFlopState> {
     static initialState = FlipFlopState.Off;
-
+    
     constructor(
         name: string, 
         inputs: string[],
@@ -67,20 +73,14 @@ class FlipFlop extends Module<FlipFlopState> {
         this.state = FlipFlop.initialState;
     }
 
-    public receive(from: string, pulse: Pulse, modules: Map<string, AnyModule>): { lowCount: number, highCount: number } {
-        if (pulse === Pulse.Low) {
-            return { lowCount: 0, highCount: 0 };
-        }
+    public receive(from: string, pulse: Pulse): PulseTransition[] {
         if (pulse === Pulse.High) {
+            return [];
+        }
+        if (pulse === Pulse.Low) {
             this.state = this.state === FlipFlopState.Off ? FlipFlopState.On : FlipFlopState.Off;
-            const pulseToSend = this.state === FlipFlopState.On ? Pulse.High : Pulse.Low;
-            return this.send(pulseToSend, modules);
-            // const propagatedPulses = this.send(pulseToSend, modules);
-            // if (pulseToSend === Pulse.Low) {
-            //     return { lowCount: propagatedPulses.lowCount + 1, highCount: propagatedPulses.highCount };
-            // } else {
-            //     return { lowCount: propagatedPulses.lowCount, highCount: propagatedPulses.highCount + 1 };
-            // }
+            const nextPulse = this.state === FlipFlopState.On ? Pulse.High : Pulse.Low;
+            return this.createOutputPulses(nextPulse);
         }
     }
 
@@ -102,18 +102,12 @@ class Conjuction extends Module<Map<string, Pulse>> {
         inputs.forEach((input) => this.state.set(input, Conjuction.initialState));
     }
 
-    public receive(from: string, pulse: Pulse, modules: Map<string, AnyModule>): { lowCount: number, highCount: number } {
+    public receive(from: string, pulse: Pulse): PulseTransition[] {
         this.state.set(from, pulse);
         const allMemorizedPulses = Array.from(this.state.values());
-        const isThereALowPulse = allMemorizedPulses.find((pulse) => pulse === Pulse.Low);
-        const pulseToSend = isThereALowPulse ? Pulse.Low : Pulse.High;
-        return this.send(pulseToSend, modules);
-        // const propagatedPulses = this.send(pulseToSend, modules);
-        // if (pulseToSend === Pulse.Low) {
-        //     return { lowCount: propagatedPulses.lowCount + 1, highCount: propagatedPulses.highCount };
-        // } else {
-        //     return { lowCount: propagatedPulses.lowCount, highCount: propagatedPulses.highCount + 1 };
-        // }
+        const isThereALowPulse = allMemorizedPulses.some((pulse) => pulse === Pulse.Low);
+        const nextPulse = isThereALowPulse ? Pulse.High : Pulse.Low;
+        return this.createOutputPulses(nextPulse);
     }
 
     public get isAtOriginalState(): boolean {
@@ -121,22 +115,23 @@ class Conjuction extends Module<Map<string, Pulse>> {
     }
 }
 
-class Broadcaster extends Module<boolean> {
+class Broadcaster extends Module<Pulse | null> {
     constructor(
         name: string, 
         inputs: string[],
         outputs: string[],
     ) {
         super(name, ModuleType.Broadcaster, inputs, outputs);
-        this.state = true;
+        this.state = null;
     }  
 
-    public receive(from: string, pulse: Pulse, modules: Map<string, AnyModule>): { lowCount: number, highCount: number } {
-        return this.send(pulse, modules);
+    public receive(from: string, pulse: Pulse): PulseTransition[] {
+        this.state = pulse;
+        return this.createOutputPulses(pulse);
     }
 
     public get isAtOriginalState(): boolean {
-        return this.state;
+        return true;
     }
 }
 
@@ -208,31 +203,91 @@ function buildModules(
     return modules;
 }
 
+function processPulse(
+    modules: Map<string, AnyModule>, 
+    start: PulseTransition = { from: 'button', pulse: Pulse.Low, to: 'broadcaster' }
+): { 
+    lowCount: number, 
+    highCount: number, 
+} {
+    let lowCount = 0;
+    let highCount = 0;
+
+    const queue = new Queue<PulseTransition>();
+    queue.enqueue(start);
+
+    while (!queue.isEmpty) {
+        const item = queue.dequeue();
+        if (item.pulse === Pulse.Low) {
+            lowCount++;
+        } else {
+            highCount++;
+        }
+        const to = modules.get(item.to);
+        if (!to) {
+            continue;
+        }
+        const newItems = to.receive(item.from, item.pulse);
+        newItems.forEach((newItem) => queue.enqueue(newItem));
+    }
+    return { lowCount, highCount };
+}
+
+function getPulseCounts(
+    modules: Map<string, AnyModule>, 
+    maxPressCount: number
+): { 
+    totalLowCount: number, 
+    totalHighCount: number, 
+} {
+    const pressEpochPulseCounts = new Map<number, { lowCount: number, highCount: number }>(); 
+
+    let pressCount = 0;
+    let loopSize = 0;
+    let totalLowCount = 0;
+    let totalHighCount = 0;
+
+    while (pressCount < maxPressCount) {
+        pressCount++;
+        const { lowCount, highCount } = processPulse(modules);
+        pressEpochPulseCounts.set(pressCount, { lowCount, highCount });
+        totalHighCount += highCount;
+        totalLowCount += lowCount;
+        const areAllModulesAtOriginalState = Array.from(modules.values()).every((module) => module.isAtOriginalState);
+        if (areAllModulesAtOriginalState) {
+            loopSize = pressCount;
+            break;
+        }
+    }
+
+    const totalLoopCount = loopSize ? Math.floor(maxPressCount / loopSize) : 1;
+    const remainingLoopCount = totalLoopCount - 1;
+    totalHighCount += remainingLoopCount * totalHighCount;
+    totalLowCount += remainingLoopCount * totalLowCount;
+
+    const jumpedPressCount = pressCount + remainingLoopCount * loopSize;
+    for (pressCount = jumpedPressCount; pressCount < maxPressCount; pressCount++) {
+        const { lowCount, highCount } = pressEpochPulseCounts.get(pressCount % loopSize);
+        totalHighCount += highCount;
+        totalLowCount += lowCount;
+    }
+
+    return { totalLowCount, totalHighCount };
+}
+
 function part1(lines: string[]): number {
+    const maxPressCount = 1000;
     const moduleList = parseModuleList(lines);
     const { inputs, outputs } = getInputsAndOutputs(moduleList);
     const modules = buildModules(moduleList, inputs, outputs);
-
-    const broadcaster = modules.get('broadcaster');
-    let i = 1;
-    let d = { lowCount: 0, highCount: 0 };
-    for (; i < 1000; i++) {
-        const e = broadcaster.receive('broadcaster', Pulse.High, modules);
-        d = { lowCount: d.lowCount + e.lowCount, highCount: d.highCount + e.highCount };
-        const b = Array.from(modules.values()).find((module) => !module.isAtOriginalState);
-        // console.log(b ? 'Not all modules are at their original state' : 'All modules are at their original state')
-        // if (!b) {
-        //     break;
-        // }
-    }
-    console.log(i)
-    console.log(d)
-    return 0;
+    const { totalLowCount, totalHighCount } = getPulseCounts(modules, maxPressCount);
+    const productOfPulses = totalHighCount * totalLowCount;
+    return productOfPulses;
 }
 
 function part2(lines: string[]): number {
     return 0;
 }
 
-// solutionner(Day.D20, part1, part2);
+solutionner(Day.D20, part1, part2);
 export { part1, part2 };
