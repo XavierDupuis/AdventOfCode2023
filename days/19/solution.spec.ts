@@ -28,5 +28,8 @@ describe('Day 19', () => {
     });
 
     describe('Part 2', () => {
+        it('should return 167409079868000 combinations of ratings', () => {
+            expect(part2(workflowsAndPartRatings)).toBe(167409079868000);
+        });
     });
 });
